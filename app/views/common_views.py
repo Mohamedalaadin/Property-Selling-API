@@ -1,37 +1,27 @@
 from flask import Blueprint, jsonify
 from app.services.user_service import UserService
+from flask_restx import Namespace, fields, Resource
+from app.models.user import UserRole
 
 # Define the blueprint
 bp = Blueprint('common', __name__)
 
-@bp.route('/users', methods=['GET'])
-def get_all_users():
-    try:
-        users_list = UserService.get_all_users()
-        return jsonify(users_list), 200
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'message': str(e)}), 500
+# Define the namespace
+common_ns = Namespace('common operations', description='Common operations')
 
-#route: View Property Details
-@bp.route('/properties/<int:property_id>', methods=['GET'])
-def view_property_endpoint(property_id):
-	"""
-	Endpoint to retrieve and view details of a specific property by its ID.
+# Define the model for your Swagger documentation (if needed)
+user_model = common_ns.model('User', {
+    'id': fields.Integer(required=True, description='The user unique identifier'),
+    'name': fields.String(required=True, description="The user's name"),
+    'email': fields.String(required=True, description="The user's email address", unique=True),
+    'mobile': fields.String(description="The user's mobile number"),
+    'role': fields.String(required=True, enum=[role.value for role in UserRole], description="The user's role"),
+})
 
-	:param property_id: The ID of the property to view.
-	:type property_id: int
-
-	:return: On success, returns a JSON representation of the property details,
-			including its location, number of rooms, price, and status. On failure,
-			returns a JSON object with an error message.
-	:rtype: flask.Response
-	"""
-
-	try:
-		property_details = UserService.view_property(property_id)
-		return jsonify(property_details), 200
-	except Exception as e:
-		print(f"Error: {e}")
-		return jsonify(message=str(e)), 500
-
+@common_ns.route('/users')
+class UserList(Resource):
+    @common_ns.doc('list_users')
+    @common_ns.marshal_list_with(user_model)
+    def get(self):
+        """Fetch all users"""
+        return UserService.get_all_users()

@@ -1,9 +1,115 @@
 from flask import request ,Blueprint, jsonify
 from app import db
+from app.models.property import Property, PropertyStatus
 from app.services.property_owner_service import PropertyOwnerService
-
+from app.services.user_service import UserService
+from flask_restx import Namespace, Resource, fields, reqparse, abort
 
 bp = Blueprint('property', __name__)
+# Define the namespace
+property_ns = Namespace(
+	'properties',
+	description='operations related to properties E.G, list, view, add, modify and delete properties'
+)
+
+# Define models for Swagger documentation
+property_model = property_ns.model('Property', {
+    'id': fields.Integer(required=True, description='The property identifier'),
+	'owner_id': fields.Integer(required=True, description='The owner user identifier'),
+    'location': fields.String(required=True, description='Location of the property'),
+    'num_rooms': fields.Integer(required=True, description='Number of rooms'),
+    'price': fields.Float(required=True, description='Price of the property'),
+    'status': fields.String(required=True, enum=[e.value for e in PropertyStatus], description='Status of the property')
+})
+property_creation_model = property_ns.model('PropertyCreation', {
+    'location': fields.String(required=True, description='Location of the property'),
+    'num_rooms': fields.Integer(required=True, description='Number of rooms'),
+    'price': fields.Float(required=True, description='Price of the property'),
+    'status': fields.String(required=True, enum=[status.value for status in PropertyStatus],
+                            description='Status of the property')
+})
+property_modify_model = property_ns.model('PropertyModifaction', {
+    'location': fields.String(required=False, description='Location of the property'),
+    'num_rooms': fields.Integer(required=False, description='Number of rooms'),
+    'price': fields.Float(required=False, description='Price of the property'),
+    'status': fields.String(required=False, enum=[status.value for status in PropertyStatus],
+                            description='Status of the property')
+})
+
+# Define parsers for input data
+property_parser = reqparse.RequestParser()
+property_parser.add_argument('X-User-Id', location='headers', required=True, help='User ID')
+
+@property_ns.route('/')
+class PropertyList(Resource):
+    @property_ns.expect(property_parser)
+    @property_ns.marshal_list_with(property_model, envelope='properties')
+    def get(self):
+        """List all properties related to a user"""
+        args = property_parser.parse_args()
+        user_id = args['X-User-Id']
+        try:
+            properties = PropertyOwnerService.view_properties_list(user_id)
+            return properties
+        except Exception as e:
+	        if "do not have permission" in str(e):
+	            abort(403, str(e))
+	        else:
+	            abort(400, str(e))
+
+    @property_ns.expect(property_parser, property_creation_model, validate=True)
+    @property_ns.response(201, 'Property successfully added')
+    @property_ns.response(400, 'Validation Error')
+    def post(self):
+        """Create a new property"""
+        args = property_parser.parse_args()
+        user_id = args['X-User-Id']
+        property_data = request.json
+        try:
+	        # Attempt to add the property
+	        PropertyOwnerService.add_property(user_id, property_data)
+	        return {'message': 'Property added successfully'}, 201
+        except Exception as e:
+	        if "do not have permission" in str(e):
+		        abort(403, str(e))
+	        else:
+		        abort(400, str(e))
+
+@property_ns.route('/<int:id>')
+class PropertyOperations(Resource):
+    @property_ns.doc('get_property')
+    @property_ns.response(404, 'Property not found')
+    @property_ns.marshal_with(property_model)
+    def get(self, id):
+        """Fetch a single property by its ID"""
+        property = UserService.view_property(id)
+        if property:
+            return property
+        property_ns.abort(404, "Property not found")
+
+    @property_ns.expect(property_modify_model, property_parser , validate=True)
+    @property_ns.response(204, 'Property successfully updated')
+    def put(self, id):
+        """Update a property related to a user by its ID"""
+        args = property_parser.parse_args()
+        user_id = args['X-User-Id']
+
+        property_data = request.json
+        updated_property = PropertyOwnerService.modify_property(user_id, id, property_data)
+        return {
+	               'message': f'Property {id} updated successfully',
+	               'property': updated_property.to_dict()
+               }, 200
+
+    @property_ns.expect(property_parser, validate=True)
+    @property_ns.response(204, 'Property successfully deleted')
+    def delete(self, id):
+        """Delete a property with ID"""
+        args = property_parser.parse_args()
+        user_id = args['X-User-Id']
+
+        PropertyOwnerService.delete_property(user_id, id)
+        return {'message': f'Property {id} deleted successfully'}, 200
 
 @bp.route('/properties', methods=['GET'])
 def get_properties_list_endpoint():
