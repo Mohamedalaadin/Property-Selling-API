@@ -26,8 +26,11 @@ class PropertyOwnerService:
 		# Query the database for properties owned by the user
 		properties = Property.query.filter_by(owner_id=user_id).all()
 
+		# Convert the list of Property objects to a list of dictionaries using to_dict()
+		properties_list = [property.to_dict() for property in properties]
 
-		return properties
+
+		return properties_list
 
 	@staticmethod
 	def add_property(user_id, property_data):
@@ -70,6 +73,9 @@ class PropertyOwnerService:
 		# Invalidate the cache for search_properties
 		cache.delete_memoized(BuyerService.search_properties)
 
+		# Invalidate the cache for list_properties
+		cache.delete_memoized(PropertyOwnerService.view_properties_list)
+
 
 	@staticmethod
 	def modify_property(user_id, property_id, property_data):
@@ -108,7 +114,7 @@ class PropertyOwnerService:
 		if property_to_modify is None:
 			raise Exception("Property not found.")
 		if property_to_modify.owner_id != int(user_id):
-			raise Exception(f"You do not own this property.userid is:{user_id} and the ownerid id: {property_to_modify.owner_id}")
+			raise Exception(f"You do not own this property.")
 
 		# Modify the property details with new data provided
 		property_to_modify.location = property_data.get('location', property_to_modify.location)
@@ -123,6 +129,8 @@ class PropertyOwnerService:
 		cache.delete_memoized(BuyerService.search_properties)
 		# Invalidate the cache for this specific property in view_property
 		cache.delete_memoized(UserService.view_property, property_id)
+		# Invalidate the cache for list_properties
+		cache.delete_memoized(PropertyOwnerService.view_properties_list)
 
 		return property_to_modify
 
@@ -161,4 +169,6 @@ class PropertyOwnerService:
 		cache.delete_memoized(BuyerService.search_properties)
 		# Invalidate the cache for this specific property in view_property
 		cache.delete_memoized(UserService.view_property, property_id)
+		# Invalidate the cache for list_properties
+		cache.delete_memoized(PropertyOwnerService.view_properties_list)
 

@@ -16,12 +16,15 @@ class BuyerService:
         query = Property.query
 
         if 'location' in filters:
-            query = query.filter(Property.location == filters['location'])
+            query = query.filter(Property.location.ilike(f"%{filters['location']}%"))
 
         if 'num_rooms' in filters:
-            query = query.filter(Property.num_rooms == filters['num_rooms'])
+            query = query.filter(Property.num_rooms == int(filters['num_rooms']))
 
-        if 'min_price' in filters and 'max_price' in filters:
-            query = query.filter(Property.price >= filters['min_price'], Property.price <= filters['max_price'])
+        if 'min_price' in filters:
+            query = query.filter(Property.price >= float(filters['min_price']))
+
+        if 'max_price' in filters:
+            query = query.filter(Property.price <= float(filters['max_price']))
 
         return query.all()

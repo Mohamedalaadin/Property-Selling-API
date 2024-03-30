@@ -13,7 +13,7 @@ class UserService:
 		try:
 			users = User.query.all()
 			users_list = [
-				{'id': user.id, 'name': user.name, 'email': user.email, 'role': user.role.name if user.role else None}
+				{'id': user.id, 'name': user.name, 'email': user.email, 'mobile': user.mobile, 'role': user.role.name if user.role else None}
 				for user in users
 			]
 			return users_list
