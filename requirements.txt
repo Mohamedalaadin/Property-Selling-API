@@ -1,4 +1,5 @@
 aniso8601==9.0.1
+Flask-RESTX==0.5.1
 async-timeout==4.0.3
 attrs==23.2.0
 blinker==1.7.0
